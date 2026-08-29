@@ -33,13 +33,13 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 def render(store: Store, message: str = "", error: str = "") -> bytes:
     options = "".join(
-        f'<option value="{p.key}">{html.escape(p.name)} ({p.compound}, ppm)</option>'
+        f'<option value="{p.key}">{html.escape(p.name)} ({html.escape(p.basis)})</option>'
         for p in PARAMETERS.values()
     )
     rows = "".join(
         f"<tr><td>{html.escape(PARAMETERS[r.parameter].name)}</td>"
         f'<td class="num">{r.value:g}</td>'
-        f"<td>{html.escape(r.compound)}</td>"
+        f"<td>{html.escape(r.basis)}</td>"
         f"<td>{_stamp(r.measured_at)}</td></tr>"
         for r in store.recent()
     )
@@ -59,13 +59,13 @@ metric names the HYDROS exporter would use.</p>
 {banner}
 <form method="post" action="/">
   <label>Parameter<select name="parameter">{options}</select></label>
-  <label>Value (ppm)<input name="value" type="number" step="any" min="0" required
+  <label>Value<input name="value" type="number" step="any" min="0" required
     autofocus></label>
   <label>Measured at<input name="measured_at" type="datetime-local"
     value="{_local_now()}"></label>
   <button type="submit">Record reading</button>
 </form>
-<table><thead><tr><th>Parameter</th><th class="num">Value</th><th>As</th>
+<table><thead><tr><th>Parameter</th><th class="num">Value</th><th>Basis</th>
 <th>Measured</th></tr></thead><tbody>{rows or
   '<tr><td colspan="4">No readings yet.</td></tr>'}</tbody></table>
 </body></html>

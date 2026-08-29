@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS reading (
     id INTEGER PRIMARY KEY,
     parameter TEXT NOT NULL,
     value REAL NOT NULL,
-    compound TEXT NOT NULL,
+    basis TEXT NOT NULL,
     measured_at INTEGER NOT NULL,
     entered_at INTEGER NOT NULL
 );
@@ -24,7 +24,7 @@ class Reading:
     id: int
     parameter: str
     value: float
-    compound: str
+    basis: str
     measured_at: int
     entered_at: int
 
@@ -56,13 +56,13 @@ class Store:
 
         with self._lock:
             cur = self._db.execute(
-                "INSERT INTO reading (parameter, value, compound, measured_at, entered_at)"
+                "INSERT INTO reading (parameter, value, basis, measured_at, entered_at)"
                 " VALUES (?, ?, ?, ?, ?)",
-                (parameter.key, float(value), parameter.compound, measured, now),
+                (parameter.key, float(value), parameter.basis, measured, now),
             )
             self._db.commit()
             row_id = cur.lastrowid
-        return Reading(row_id, parameter.key, float(value), parameter.compound, measured, now)
+        return Reading(row_id, parameter.key, float(value), parameter.basis, measured, now)
 
     def latest(self) -> dict[str, Reading]:
         """Newest reading per parameter, by measurement time."""
@@ -100,7 +100,7 @@ def _reading(row: sqlite3.Row) -> Reading:
         row["id"],
         row["parameter"],
         row["value"],
-        row["compound"],
+        row["basis"],
         row["measured_at"],
         row["entered_at"],
     )

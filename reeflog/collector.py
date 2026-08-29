@@ -27,12 +27,16 @@ class ReadingCollector:
             reading = latest.get(key)
             if reading is None:
                 continue
-            gauge = GaugeMetricFamily(
-                parameter.metric, parameter.helptext, labels=["name", "compound", "source"]
-            )
-            gauge.add_metric(
-                [parameter.name, parameter.compound, SOURCE], reading.value
-            )
-            yield gauge
+            yield _gauge(parameter.metric, parameter.helptext, parameter.name,
+                         parameter.basis, reading.value)
+            for derived in parameter.derived:
+                yield _gauge(derived.metric, derived.helptext, parameter.name,
+                             derived.basis, derived.convert(reading.value))
             measured.add_metric([parameter.name, SOURCE], reading.measured_at)
         yield measured
+
+
+def _gauge(metric, helptext, name, basis, value):
+    gauge = GaugeMetricFamily(metric, helptext, labels=["name", "basis", "source"])
+    gauge.add_metric([name, basis, SOURCE], value)
+    return gauge

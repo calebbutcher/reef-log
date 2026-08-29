@@ -59,7 +59,7 @@ def test_posting_a_reading_publishes_the_expected_series(server):
     base, _ = server
     post(f"{base}/", {"parameter": "phosphate", "value": "0.04"})
     body = get(f"{base}/metrics")[1]
-    assert 'hydros_input_phosphate_ppm{compound="PO4",name="Phosphate",source="manual"} 0.04' in body
+    assert 'hydros_input_phosphate_ppm{basis="PO4",name="Phosphate",source="manual"} 0.04' in body
     assert 'hydros_input_measured_timestamp_seconds{name="Phosphate",source="manual"}' in body
 
 
@@ -109,6 +109,22 @@ def test_same_origin_post_is_allowed(server):
     post(f"{base}/", {"parameter": "phosphate", "value": "0.04"},
          headers={"Origin": f"http://{host}"})
     assert store.latest()["phosphate"].value == pytest.approx(0.04)
+
+
+def test_salinity_publishes_both_sg_and_derived_ppt(server):
+    base, _ = server
+    post(f"{base}/", {"parameter": "salinity", "value": "1.026"})
+    body = get(f"{base}/metrics")[1]
+    assert 'hydros_input_specific_gravity{basis="SG",name="Salinity",source="manual"} 1.026' in body
+    ppt = [l for l in body.splitlines() if l.startswith("hydros_input_salinity_ppt{")]
+    assert ppt and 34.0 < float(ppt[0].rsplit(" ", 1)[1]) < 35.5
+
+
+def test_alkalinity_uses_the_name_the_exporter_reserves(server):
+    base, _ = server
+    post(f"{base}/", {"parameter": "alkalinity", "value": "8.6"})
+    body = get(f"{base}/metrics")[1]
+    assert 'hydros_input_alkalinity_dkh{basis="dKH",name="Alkalinity",source="manual"} 8.6' in body
 
 
 def test_unknown_path_is_404(server):
