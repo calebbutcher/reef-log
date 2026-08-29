@@ -1,4 +1,6 @@
 import html
+import logging
+import sqlite3
 import urllib.parse
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler
@@ -9,6 +11,8 @@ from .parameters import PARAMETERS
 from .store import Store
 
 MAX_BODY = 4096
+
+log = logging.getLogger("reeflog")
 
 STYLE = """
 :root { color-scheme: light dark; }
@@ -138,8 +142,16 @@ def build_handler(store: Store, registry):
             except (ValueError, KeyError) as exc:
                 self._html(400, error=str(exc) or "could not read that entry")
                 return
-            self._html(200, message=f"Recorded {PARAMETERS[reading.parameter].name} "
-                                    f"{reading.value:g} ppm.")
+            except sqlite3.Error as exc:
+                # Letting this escape drops the connection mid-request, which
+                # the ingress reports as a bad gateway rather than an error.
+                log.exception("write failed")
+                self._send(500, f"could not save that reading: {exc}\n".encode(),
+                           "text/plain; charset=utf-8")
+                return
+            parameter = PARAMETERS[reading.parameter]
+            self._html(200, message=f"Recorded {parameter.name} {reading.value:g} "
+                                    f"{parameter.basis}.")
 
         def _same_origin(self) -> bool:
             """

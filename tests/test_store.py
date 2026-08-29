@@ -1,3 +1,4 @@
+import sqlite3
 import time
 
 import pytest
@@ -54,6 +55,58 @@ def test_out_of_range_values_are_rejected(store, key, value):
 def test_future_measurements_are_rejected(store):
     with pytest.raises(ValueError):
         store.add("phosphate", 0.05, measured_at=int(time.time()) + 90 * 86400)
+
+
+def v010_database(path):
+    """The 0.1.0 schema, which named the basis column `compound`."""
+    db = sqlite3.connect(str(path))
+    db.executescript(
+        "CREATE TABLE reading (id INTEGER PRIMARY KEY, parameter TEXT NOT NULL,"
+        " value REAL NOT NULL, compound TEXT NOT NULL, measured_at INTEGER NOT NULL,"
+        " entered_at INTEGER NOT NULL);"
+    )
+    db.commit()
+    db.close()
+
+
+def test_upgrading_from_the_old_column_name_still_accepts_writes(tmp_path):
+    """
+    CREATE TABLE IF NOT EXISTS leaves an existing table alone, so renaming the
+    column in SCHEMA alone broke every INSERT on an already-deployed database.
+    """
+    path = tmp_path / "old.db"
+    v010_database(path)
+    store = Store(str(path))
+    store.add("phosphate", 0.04)
+    assert store.latest()["phosphate"].basis == "PO4"
+    store.close()
+
+
+def test_upgrade_preserves_existing_rows(tmp_path):
+    path = tmp_path / "old.db"
+    v010_database(path)
+    db = sqlite3.connect(str(path))
+    db.execute("INSERT INTO reading (parameter, value, compound, measured_at, entered_at)"
+               " VALUES ('nitrate', 5.0, 'NO3', 1000, 1000)")
+    db.commit()
+    db.close()
+
+    store = Store(str(path))
+    assert store.latest()["nitrate"].value == pytest.approx(5.0)
+    assert store.latest()["nitrate"].basis == "NO3"
+    store.close()
+
+
+def test_migration_is_idempotent(tmp_path):
+    path = tmp_path / "old.db"
+    v010_database(path)
+    for _ in range(3):
+        store = Store(str(path))
+        store.close()
+    store = Store(str(path))
+    store.add("alkalinity", 8.6)
+    assert store.latest()["alkalinity"].basis == "dKH"
+    store.close()
 
 
 def test_metric_names_match_the_exporter_convention():
