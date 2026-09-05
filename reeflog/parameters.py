@@ -84,6 +84,18 @@ PARAMETERS = {
             maximum=25.0,
         ),
         Parameter(
+            key="calcium",
+            name="Calcium",
+            # Calcium is only ever reported as elemental Ca in ppm, so unlike
+            # phosphate or nitrate there is no competing basis to record. The
+            # column is still populated so every row states its own.
+            basis="Ca",
+            metric="hydros_input_calcium_ppm",
+            helptext="Calcium as Ca in parts per million.",
+            minimum=0.0,
+            maximum=1000.0,
+        ),
+        Parameter(
             key="salinity",
             name="Salinity",
             basis="SG",

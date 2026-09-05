@@ -46,7 +46,7 @@ def test_unknown_parameter_is_rejected(store):
 
 
 @pytest.mark.parametrize("key,value", [("phosphate", 99.0), ("nitrate", 9999.0),
-                                       ("phosphate", -1.0)])
+                                       ("calcium", 5000.0), ("phosphate", -1.0)])
 def test_out_of_range_values_are_rejected(store, key, value):
     with pytest.raises(ValueError):
         store.add(key, value)

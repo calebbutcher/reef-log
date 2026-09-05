@@ -120,6 +120,13 @@ def test_salinity_publishes_both_sg_and_derived_ppt(server):
     assert ppt and 34.0 < float(ppt[0].rsplit(" ", 1)[1]) < 35.5
 
 
+def test_calcium_publishes_in_ppm(server):
+    base, _ = server
+    post(f"{base}/", {"parameter": "calcium", "value": "430"})
+    body = get(f"{base}/metrics")[1]
+    assert 'hydros_input_calcium_ppm{basis="Ca",name="Calcium",source="manual"} 430.0' in body
+
+
 def test_alkalinity_uses_the_name_the_exporter_reserves(server):
     base, _ = server
     post(f"{base}/", {"parameter": "alkalinity", "value": "8.6"})

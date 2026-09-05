@@ -12,10 +12,19 @@ Readings are published under the names a HYDROS exporter would use for the same
 parameter, with a `source="manual"` label:
 
 ```
-hydros_input_phosphate_ppm{name="Phosphate", compound="PO4", source="manual"}
-hydros_input_nitrate_ppm{name="Nitrate",     compound="NO3", source="manual"}
+hydros_input_phosphate_ppm{name="Phosphate",     basis="PO4", source="manual"}
+hydros_input_nitrate_ppm{name="Nitrate",         basis="NO3", source="manual"}
+hydros_input_alkalinity_dkh{name="Alkalinity",   basis="dKH", source="manual"}
+hydros_input_calcium_ppm{name="Calcium",         basis="Ca",  source="manual"}
+hydros_input_specific_gravity{name="Salinity",   basis="SG",  source="manual"}
+hydros_input_salinity_ppt{name="Salinity", basis="SG-derived", source="manual"}
 hydros_input_measured_timestamp_seconds{name="Phosphate", source="manual"}
 ```
+
+Salinity is the one parameter that cannot share the probe's name: a probe
+reports ppt (~35) and a refractometer reads specific gravity (~1.026), so the
+measured value keeps its own metric and a derived ppt series is published
+beside it.
 
 Matching names is deliberate. If a controller API later reports the same
 parameter, `max by (name) (...)` merges both into one continuous series, and
@@ -26,8 +35,10 @@ max by (name) (hydros_input_phosphate_ppm{source=""})
   or max by (name) (hydros_input_phosphate_ppm{source="manual"})
 ```
 
-The measurement convention (PO4 vs P, NO3 vs N) is stored per reading, because
-it is the one thing that cannot be reconstructed later.
+The measurement basis (PO4 vs P, NO3 vs N, dKH vs meq/L) is stored per reading,
+because it is the one thing that cannot be reconstructed later. The label is
+`basis` rather than `compound` because dKH and specific gravity are not
+compounds; calcium has only the one basis but still records it.
 
 ## Routes
 
