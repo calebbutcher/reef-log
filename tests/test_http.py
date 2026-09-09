@@ -38,6 +38,23 @@ def post(url, fields, headers=None):
         return r.status, r.read().decode()
 
 
+def post_no_redirect(url, fields, headers=None):
+    """urllib follows the 303 itself, so the other helpers never see it."""
+    data = urllib.parse.urlencode(fields).encode()
+    req = urllib.request.Request(url, data=data, headers=headers or {})
+    opener = urllib.request.build_opener(NoRedirect)
+    try:
+        with opener.open(req) as r:
+            return r.status, dict(r.headers)
+    except urllib.error.HTTPError as e:
+        return e.code, dict(e.headers)
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args):
+        return None
+
+
 def test_form_renders(server):
     base, _ = server
     status, body = get(f"{base}/")
@@ -139,3 +156,27 @@ def test_unknown_path_is_404(server):
     with pytest.raises(urllib.error.HTTPError) as exc:
         get(f"{base}/nope")
     assert exc.value.code == 404
+
+
+def test_a_recorded_reading_answers_with_a_redirect(server):
+    base, _ = server
+    status, headers = post_no_redirect(f"{base}/", {"parameter": "nitrate", "value": "5"})
+    assert status == 303
+    assert headers["Location"] == "/?recorded=1"
+
+
+def test_refreshing_after_a_post_does_not_record_it_twice(server):
+    base, store = server
+    _, headers = post_no_redirect(f"{base}/", {"parameter": "nitrate", "value": "5"})
+    landing = base + headers["Location"]
+    for _ in range(3):
+        status, body = get(landing)
+        assert status == 200
+        assert "Recorded Nitrate 5 NO3." in body
+    assert len(store.recent()) == 1
+
+
+def test_a_bogus_recorded_id_renders_no_banner(server):
+    base, _ = server
+    assert "note ok" not in get(f"{base}/?recorded=999")[1]
+    assert "note ok" not in get(f"{base}/?recorded=abc")[1]

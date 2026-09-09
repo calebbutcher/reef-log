@@ -75,6 +75,13 @@ class Store:
             row_id = cur.lastrowid
         return Reading(row_id, parameter.key, float(value), parameter.basis, measured, now)
 
+    def get(self, row_id: int) -> Reading | None:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT * FROM reading WHERE id = ?", (row_id,)
+            ).fetchone()
+        return _reading(row) if row else None
+
     def latest(self) -> dict[str, Reading]:
         """Newest reading per parameter, by measurement time."""
         with self._lock:
