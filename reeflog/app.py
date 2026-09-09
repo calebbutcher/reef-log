@@ -34,6 +34,26 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .bad { background: rgba(200,70,70,0.18); }
 """
 
+# The redirect fixes a refresh, but not a second click landing before the first
+# response does — that is a second POST, and by then there is nothing to undo.
+# No CSP is set on this route (neither here nor by the shared Traefik headers
+# middleware), so an inline script runs.
+SCRIPT = """
+const form = document.querySelector("form");
+const button = form.querySelector("button");
+form.addEventListener("submit", () => {
+  // Deferred by a tick: the button must still be enabled while the browser
+  // collects the form data, or the submission it is guarding never goes out.
+  setTimeout(() => { button.disabled = true; button.textContent = "Recording\u2026"; });
+});
+// A page restored from the history cache keeps the DOM as it was left, so
+// coming back to the form would otherwise find a permanently dead button.
+addEventListener("pageshow", () => {
+  button.disabled = false;
+  button.textContent = "Record reading";
+});
+"""
+
 
 def render(store: Store, message: str = "", error: str = "") -> bytes:
     options = "".join(
@@ -72,6 +92,7 @@ metric names the HYDROS exporter would use.</p>
 <table><thead><tr><th>Parameter</th><th class="num">Value</th><th>Basis</th>
 <th>Measured</th></tr></thead><tbody>{rows or
   '<tr><td colspan="4">No readings yet.</td></tr>'}</tbody></table>
+<script>{SCRIPT}</script>
 </body></html>
 """.encode()
 

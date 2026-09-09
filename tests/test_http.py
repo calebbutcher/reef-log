@@ -180,3 +180,11 @@ def test_a_bogus_recorded_id_renders_no_banner(server):
     base, _ = server
     assert "note ok" not in get(f"{base}/?recorded=999")[1]
     assert "note ok" not in get(f"{base}/?recorded=abc")[1]
+
+
+def test_the_form_ships_the_double_click_guard(server):
+    """The redirect only covers refreshes; a second click is a second POST."""
+    base, _ = server
+    body = get(f"{base}/")[1]
+    assert "button.disabled = true" in body
+    assert "pageshow" in body
