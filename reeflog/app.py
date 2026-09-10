@@ -34,6 +34,26 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .bad { background: rgba(200,70,70,0.18); }
 """
 
+# The redirect fixes a refresh, but not a second click landing before the first
+# response does — that is a second POST, and by then there is nothing to undo.
+# No CSP is set on this route (neither here nor by the shared Traefik headers
+# middleware), so an inline script runs.
+SCRIPT = """
+const form = document.querySelector("form");
+const button = form.querySelector("button");
+form.addEventListener("submit", () => {
+  // Deferred by a tick: the button must still be enabled while the browser
+  // collects the form data, or the submission it is guarding never goes out.
+  setTimeout(() => { button.disabled = true; button.textContent = "Recording\u2026"; });
+});
+// A page restored from the history cache keeps the DOM as it was left, so
+// coming back to the form would otherwise find a permanently dead button.
+addEventListener("pageshow", () => {
+  button.disabled = false;
+  button.textContent = "Record reading";
+});
+"""
+
 
 def render(store: Store, message: str = "", error: str = "") -> bytes:
     options = "".join(
@@ -72,6 +92,7 @@ metric names the HYDROS exporter would use.</p>
 <table><thead><tr><th>Parameter</th><th class="num">Value</th><th>Basis</th>
 <th>Measured</th></tr></thead><tbody>{rows or
   '<tr><td colspan="4">No readings yet.</td></tr>'}</tbody></table>
+<script>{SCRIPT}</script>
 </body></html>
 """.encode()
 
@@ -92,6 +113,22 @@ def parse_measured_at(raw: str) -> int | None:
     return int(datetime.fromisoformat(raw).timestamp())
 
 
+def recorded_message(store: Store, query: str) -> str:
+    """
+    A reading is confirmed by its row id in the query string rather than by
+    rendering the answer to the POST itself, so refreshing the page re-runs
+    this GET instead of re-submitting the form.
+    """
+    raw = (urllib.parse.parse_qs(query).get("recorded") or [""])[0]
+    if not raw.isdigit():
+        return ""
+    reading = store.get(int(raw))
+    parameter = PARAMETERS.get(reading.parameter) if reading else None
+    if parameter is None:
+        return ""
+    return f"Recorded {parameter.name} {reading.value:g} {parameter.basis}."
+
+
 def build_handler(store: Store, registry):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -103,11 +140,18 @@ def build_handler(store: Store, registry):
             self.end_headers()
             self.wfile.write(body)
 
+        def _redirect(self, location):
+            self.send_response(303)
+            self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
         def _html(self, code=200, message="", error=""):
             self._send(code, render(store, message, error), "text/html; charset=utf-8")
 
         def do_GET(self):
-            path = self.path.split("?", 1)[0].rstrip("/") or "/"
+            raw_path, _, query = self.path.partition("?")
+            path = raw_path.rstrip("/") or "/"
             if path == "/metrics":
                 self._send(200, generate_latest(registry), CONTENT_TYPE_LATEST)
             elif path == "/healthz":
@@ -115,7 +159,7 @@ def build_handler(store: Store, registry):
                 self._send(200 if ok else 503, b"ok\n" if ok else b"unhealthy\n",
                            "text/plain; charset=utf-8")
             elif path == "/":
-                self._html()
+                self._html(message=recorded_message(store, query))
             else:
                 self._send(404, b"not found\n", "text/plain; charset=utf-8")
 
@@ -149,9 +193,7 @@ def build_handler(store: Store, registry):
                 self._send(500, f"could not save that reading: {exc}\n".encode(),
                            "text/plain; charset=utf-8")
                 return
-            parameter = PARAMETERS[reading.parameter]
-            self._html(200, message=f"Recorded {parameter.name} {reading.value:g} "
-                                    f"{parameter.basis}.")
+            self._redirect(f"/?recorded={reading.id}")
 
         def _same_origin(self) -> bool:
             """
