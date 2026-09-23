@@ -144,6 +144,13 @@ def test_calcium_publishes_in_ppm(server):
     assert 'hydros_input_calcium_ppm{basis="Ca",name="Calcium",source="manual"} 430.0' in body
 
 
+def test_magnesium_publishes_in_ppm(server):
+    base, _ = server
+    post(f"{base}/", {"parameter": "magnesium", "value": "1380"})
+    body = get(f"{base}/metrics")[1]
+    assert 'hydros_input_magnesium_ppm{basis="Mg",name="Magnesium",source="manual"} 1380.0' in body
+
+
 def test_alkalinity_uses_the_name_the_exporter_reserves(server):
     base, _ = server
     post(f"{base}/", {"parameter": "alkalinity", "value": "8.6"})

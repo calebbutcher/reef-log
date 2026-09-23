@@ -96,6 +96,19 @@ PARAMETERS = {
             maximum=1000.0,
         ),
         Parameter(
+            key="magnesium",
+            name="Magnesium",
+            # Elemental Mg in ppm, like calcium: the one basis anyone reports,
+            # recorded anyway so no row is silent about its own.
+            basis="Mg",
+            metric="hydros_input_magnesium_ppm",
+            helptext="Magnesium as Mg in parts per million.",
+            minimum=0.0,
+            # Natural seawater is ~1280 and dosing targets run to ~1500, so a
+            # reading past 3000 is a slipped digit rather than a tank.
+            maximum=3000.0,
+        ),
+        Parameter(
             key="salinity",
             name="Salinity",
             basis="SG",
