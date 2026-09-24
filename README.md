@@ -16,6 +16,7 @@ hydros_input_phosphate_ppm{name="Phosphate",     basis="PO4", source="manual"}
 hydros_input_nitrate_ppm{name="Nitrate",         basis="NO3", source="manual"}
 hydros_input_alkalinity_dkh{name="Alkalinity",   basis="dKH", source="manual"}
 hydros_input_calcium_ppm{name="Calcium",         basis="Ca",  source="manual"}
+hydros_input_magnesium_ppm{name="Magnesium",     basis="Mg",  source="manual"}
 hydros_input_specific_gravity{name="Salinity",   basis="SG",  source="manual"}
 hydros_input_salinity_ppt{name="Salinity", basis="SG-derived", source="manual"}
 hydros_input_measured_timestamp_seconds{name="Phosphate", source="manual"}
@@ -38,7 +39,8 @@ max by (name) (hydros_input_phosphate_ppm{source=""})
 The measurement basis (PO4 vs P, NO3 vs N, dKH vs meq/L) is stored per reading,
 because it is the one thing that cannot be reconstructed later. The label is
 `basis` rather than `compound` because dKH and specific gravity are not
-compounds; calcium has only the one basis but still records it.
+compounds; calcium and magnesium have only the one basis each but still
+record it.
 
 ## Routes
 
